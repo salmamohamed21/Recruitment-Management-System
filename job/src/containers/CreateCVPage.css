@@ -1,0 +1,28 @@
+
+.create-cv-page {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+    align-items: flex-start;
+
+    
+  } 
+  
+   .form-container {
+    flex: 1;
+    padding: 0px;
+    overflow-y: auto;
+    margin-right: 0px;
+    margin-right: 100px;
+    display: inline;
+      
+  }
+  
+  
+  .resume-preview-container {
+    padding: 20px;
+  }
+  
+
+

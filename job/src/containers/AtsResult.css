@@ -1,0 +1,76 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.header {
+  font-weight: bold;
+  color:black;
+  font-size: 24px;
+  text-align: center;
+  margin-bottom: 2px;
+ 
+}
+
+.upload-form { 
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  
+}
+
+.file-input {
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+
+.upload-button{
+  background-color: #14919b; 
+  color: white; 
+  font-weight: bold;
+  padding: 10px 20px; 
+  border: none; 
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background-color 0.3s ease;
+  margin-right: 10px;
+  display: inline-block;
+}
+
+.upload-button:hover{
+  background-color: #11676d; 
+}
+.jobseeker-nav-pill {
+  font-weight: bold;
+  padding: 3px 10px; 
+}
+
+.results {
+  margin-top: 20px;
+}
+
+.ats-score, .overview, .strengths, .weaknesses, .improvements {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.score {
+  font-size: 18px;
+  font-weight: bold;
+  color: #007bff;
+}
+
+ul {
+  list-style-type: disc;
+  margin-left: 20px;
+}
+
+.error {
+  color: red;
+  text-align: center;
+}
