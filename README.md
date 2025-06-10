@@ -7,7 +7,7 @@ This document provides instructions to download, set up, and run the project, wh
 ## Prerequisites
 
 - Python 3.x installed on your system
-- Node.js and npm installed on your system
+- npm installed on your system
 - Git (to clone the repository)
 
 ---
