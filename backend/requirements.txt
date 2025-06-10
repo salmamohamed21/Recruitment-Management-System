@@ -1,0 +1,11 @@
+Django
+djangorestframework
+djangorestframework-simplejwt
+django-filter
+python-decouple
+google-generativeai
+pdf2image
+pytesseract
+python-docx
+spacy
+pywin32
