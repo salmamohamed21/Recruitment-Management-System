@@ -196,3 +196,14 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
+# Email settings for development - console backend
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# For production, configure SMTP settings like below:
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'projectgraduation866@gmail.com'
+EMAIL_HOST_PASSWORD = 'npnv plje akyv scoy'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

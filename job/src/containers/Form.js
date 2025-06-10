@@ -23,19 +23,7 @@ const Form = ({ formData, onFormChange }) => {
     setExperienceErrors(formData.experience.map(() => ({ date: '' })));
   }, [formData.experience.length]);
 
-  // File input handler remains unchanged
-  const handleFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const fileType = file.type;
-      if (fileType === 'image/png' || fileType === 'image/jpg') {
-        onFormChange({ ...formData, profilePicture: URL.createObjectURL(file) });
-      } else {
-        alert('Please upload a valid image file (PNG or JPG).');
-      }
-    }
-  };
-
+ 
   // Personal field change handler with validation
   const handlePersonalChange = (e) => {
     const { name, value } = e.target;
@@ -123,16 +111,7 @@ const Form = ({ formData, onFormChange }) => {
         return (
           <div className="form-section1">
             <h3>Personal Information</h3>
-            <label id="Profile-img">
-              Profile Picture:
-              <input
-                id="Profile-img"
-                type="file"
-                name="profilePicture"
-                accept="image/png, image/jpg"
-                onChange={handleFileChange}
-              />
-            </label>
+          
             <label>
               Name:
               <input

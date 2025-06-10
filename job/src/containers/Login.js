@@ -128,6 +128,12 @@ const Login = () => {
               />
             </div>
 
+            <div className="forgot-password-link text-right mb-3">
+              <Link to="/forgot-password">
+                <u>Forgot Password?</u>
+              </Link>
+            </div>
+
             <div className="form-submit text-center mt-30 mb-3">
               <button className="primary submit" disabled={loading}>
                 {loading ? "Loading..." : "Submit"}

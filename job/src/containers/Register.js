@@ -20,10 +20,49 @@ const Register = () => {
   const [companyDesc, setCompanyDesc] = React.useState("");
   const [fullName, setFullName] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [errors, setErrors] = React.useState({});
   const { error, showError } = useErrorHandler(null);
   const { setAuthStatus } = React.useContext(AuthContext);
   const isUserEntityJobseeker = userEntity === "jobseeker";
   const navigate = useNavigate();
+
+  const validateFields = () => {
+    const newErrors = {};
+
+    if (userEntity === 'employer') {
+      if (!companyName.trim()) {
+        newErrors.companyName = "Company Name is required";
+      }
+    } else {
+      if (!fullName.trim()) {
+        newErrors.fullName = "Full Name is required";
+      }
+    }
+
+    if (!country.trim()) {
+      newErrors.country = "Country is required";
+    }
+
+    if (!phone.trim()) {
+      newErrors.phone = "Phone Number is required";
+    }
+
+    if (!userEmail.trim()) {
+      newErrors.userEmail = "Email Address is required";
+    }
+
+    if (!userPassword.trim()) {
+      newErrors.userPassword = "Password is required";
+    }
+
+    if (!userConfirmPassword.trim()) {
+      newErrors.userConfirmPassword = "Confirm Password is required";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
 
   const registerHandler = async () => {
     setLoading(true);
@@ -34,7 +73,7 @@ const Register = () => {
         username: userEmail,
         email: userEmail,
         password: userPassword,
-        password_confirmation: userConfirmPassword,
+        // Removed password_confirmation as it is not expected by backend serializer
         country,
         phone,
         ...(userEntity === 'employer' ? {
@@ -54,13 +93,16 @@ const Register = () => {
           userId: response.data.user_id
         });
 
-        // Save token and user data to localStorage
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('userData', JSON.stringify({
-          email: response.data.email || userEmail,
-          userType: userEntity,
-          userId: response.data.user_id
-        }));
+        // Save token and user data to localStorage using the same keys as login
+        localStorage.setItem("accessToken", response.data.token);
+        localStorage.setItem("refreshToken", ""); // No refresh token from registration response
+        localStorage.setItem("userEmail", response.data.email || userEmail);
+        localStorage.setItem("userType", userEntity);
+        localStorage.setItem("userId", response.data.user_id);
+        // Optional profile image, logo, cover URLs can be set here if available
+        localStorage.setItem("profileImageUrl", "");
+        localStorage.setItem("logoUrl", "");
+        localStorage.setItem("coverUrl", "");
 
         // Clear form fields
         setUserEmail("");
@@ -71,6 +113,7 @@ const Register = () => {
         setCompanyName("");
         setCompanyDesc("");
         setFullName("");
+        setErrors({});
 
         // Redirect based on entity
         if (userEntity === "jobseeker") {
@@ -114,14 +157,7 @@ const Register = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (
-                validateRegisterForm(
-                  userEmail,
-                  userPassword,
-                  userConfirmPassword,
-                  showError
-                )
-              ) {
+              if (validateFields()) {
                 registerHandler();
               }
             }}
@@ -133,12 +169,15 @@ const Register = () => {
                 <div className="form-group my-30">
                   <input
                     type="text"
-                    placeholder="Company Name"
+                    placeholder="Company Name *"
                     className="form-control p-4"
                     name="companyName"
                     onChange={(e) => setCompanyName(e.target.value)}
                     value={companyName}
                   />
+                  {errors.companyName && (
+                    <div className="input-error">{errors.companyName}</div>
+                  )}
                 </div>
                 <div className="form-group my-30">
                   <textarea
@@ -154,66 +193,84 @@ const Register = () => {
               <div className="form-group my-30">
                 <input
                   type="text"
-                  placeholder="Full Name"
+                  placeholder="Full Name *"
                   className="form-control p-4"
                   name="fullName"
                   onChange={(e) => setFullName(e.target.value)}
                   value={fullName}
                 />
+                {errors.fullName && (
+                  <div className="input-error">{errors.fullName}</div>
+                )}
               </div>
             )}
 
             <div className="form-group my-30">
               <input
                 type="text"
-                placeholder="Country"
+                placeholder="Country *"
                 className="form-control p-4"
                 name="country"
                 onChange={(e) => setCountry(e.target.value)}
                 value={country}
               />
+              {errors.country && (
+                <div className="input-error">{errors.country}</div>
+              )}
             </div>
             <div className="form-group my-30">
               <input
                 type="tel"
-                placeholder="Phone Number"
+                placeholder="Phone Number *"
                 className="form-control p-4"
                 name="phone"
                 onChange={(e) => setPhone(e.target.value)}
                 value={phone}
               />
+              {errors.phone && (
+                <div className="input-error">{errors.phone}</div>
+              )}
             </div>
             <div className="form-group my-30">
               <input
                 type="email"
                 name="email"
-                placeholder="Email Address"
+                placeholder="Email Address *"
                 className="form-control p-4"
                 onChange={(e) => setUserEmail(e.target.value)}
                 value={userEmail}
               />
+              {errors.userEmail && (
+                <div className="input-error">{errors.userEmail}</div>
+              )}
             </div>
 
             <div className="form-group my-30">
               <input
                 type="password"
-                placeholder="Password"
+                placeholder="Password *"
                 className="form-control p-4"
                 name="password"
                 onChange={(e) => setUserPassword(e.target.value)}
                 value={userPassword}
               />
+              {errors.userPassword && (
+                <div className="input-error">{errors.userPassword}</div>
+              )}
             </div>
 
             <div className="form-group my-30">
               <input
                 type="password"
-                placeholder="Confirm Password"
+                placeholder="Confirm Password *"
                 className="form-control p-4"
                 name="password_confirmation"
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 value={userConfirmPassword}
               />
+              {errors.userConfirmPassword && (
+                <div className="input-error">{errors.userConfirmPassword}</div>
+              )}
             </div>
 
             <div className="form-submit text-center mt-30 mb-3">
@@ -231,6 +288,15 @@ const Register = () => {
           </form>
         </div>
       </div>
+      <style>{`
+        .input-error {
+          color: red;
+          font-size: 0.875rem;
+          margin-top: 4px;
+          margin-bottom: -20px;
+          text-align: left;
+        }
+      `}</style>
     </div>
   );
 };

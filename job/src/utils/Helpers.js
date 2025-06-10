@@ -20,12 +20,13 @@ export const getStoredUserAuth = () => {
  */
 export const apiRequest = async (url, method, bodyParams) => {
   const auth = JSON.parse(window.localStorage.getItem("UserAuth"));
+  const token = auth ? auth.token : null;
   const response = await fetch(url, {
     method,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      Authorization: auth ? auth.token : null,
+      Authorization: token ? `Bearer ${token}` : null,
     },
     body: bodyParams ? JSON.stringify(bodyParams) : undefined,
   });
@@ -52,7 +53,12 @@ export const validateRegisterForm = (
   email,
   password,
   confirmPassword,
-  setError
+  setError,
+  userEntity,
+  fullName,
+  companyName,
+  country,
+  phone
 ) => {
   // Check for undefined or empty input fields
   if (!email) {
@@ -67,6 +73,26 @@ export const validateRegisterForm = (
 
   if (!confirmPassword) {
     setError("Password confirmation field is required");
+    return false;
+  }
+
+  if (!country) {
+    setError("Country field is required");
+    return false;
+  }
+
+  if (!phone) {
+    setError("Phone number field is required");
+    return false;
+  }
+
+  if (userEntity === "jobseeker" && !fullName) {
+    setError("Full Name field is required");
+    return false;
+  }
+
+  if (userEntity === "employer" && !companyName) {
+    setError("Company Name field is required");
     return false;
   }
 

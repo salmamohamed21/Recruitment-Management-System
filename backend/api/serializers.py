@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Job, Application, Recruiter, JobSeeker
+from .models import User, Job, Application, Recruiter, JobSeeker, OTPVerification
 from django.contrib.auth.hashers import make_password
 
 # Serializer لنموذج User
@@ -41,6 +41,22 @@ class UserSerializer(serializers.ModelSerializer):
                 company_description=company_description or ''
             )
         return user
+
+class OTPRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class OTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError("New password and confirm password do not match.")
+        if len(data['new_password']) < 8:
+            raise serializers.ValidationError("New password must be at least 8 characters long.")
+        return data
 
 # Serializer لنموذج JobSeeker
 class JobSeekerSerializer(serializers.ModelSerializer):

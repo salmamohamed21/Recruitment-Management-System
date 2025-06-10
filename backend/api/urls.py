@@ -11,7 +11,8 @@ from .views import (
     update_recruiter_profile, update_job_seeker_profile, public_hot_jobs,
     get_jobseeker_details , get_jobseeker_by_email, get_jobseeker_overview_sections ,
     jobseeker_job_page_details, job_and_company_details , get_accepted_jobs_for_jobseeker , get_suggested_jobs_for_jobseeker
-    , reject_suggested_job, search_jobs , get_jobseeker_profile_image
+    , reject_suggested_job, search_jobs , get_jobseeker_profile_image,
+    request_password_reset_otp, verify_otp_and_reset_password
 )
 
 # إعداد الـ Router (اختياري إذا كنتِ تستخدمين ViewSets في المستقبل)
@@ -91,11 +92,18 @@ urlpatterns = [
     # New endpoint to get recruiter images (logo and cover)
     path('recruiter/images/', get_recruiter_images, name='get_recruiter_images'),
 
+    # OTP forgot-password endpoints
+    path('request_password_reset_otp/', request_password_reset_otp, name='request_password_reset_otp'),
+    path('verify_otp_and_reset_password/', verify_otp_and_reset_password, name='verify_otp_and_reset_password'),
+
     # تضمين أي مسارات إضافية من الـ Router (اختياري)
     path('search/', search_jobs, name='search_jobs'),
     path('search', search_jobs, name='search_jobs_no_slash'),
     path('', include(router.urls)),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

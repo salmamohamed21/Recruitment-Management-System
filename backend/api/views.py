@@ -46,9 +46,76 @@ from django.utils import timezone
 from rest_framework.permissions import AllowAny
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import Recruiter, Job, Application
+from .models import Recruiter, Job, Application, User, OTPVerification
+from .serializers import OTPRequestSerializer, OTPVerifySerializer
+from django.utils import timezone
+from django.core.mail import send_mail
+import random
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
+
+def generate_otp():
+    return f"{random.randint(100000, 999999)}"
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset_otp(request):
+    serializer = OTPRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=404)
+        
+        otp_code = generate_otp()
+        otp_entry = OTPVerification.objects.create(user=user, otp_code=otp_code)
+        
+        # Send OTP via email
+        subject = "Your Password Reset OTP"
+        message = f"Your OTP code for password reset is: {otp_code}. It is valid for 10 minutes."
+        from_email = settings.DEFAULT_FROM_EMAIL
+        recipient_list = [email]
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        
+        return Response({"message": "OTP sent to your email."}, status=200)
+    else:
+        return Response(serializer.errors, status=400)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp_and_reset_password(request):
+    serializer = OTPVerifySerializer(data=request.data)
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+        otp_code = serializer.validated_data['otp_code']
+        new_password = serializer.validated_data['new_password']
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=404)
+        
+        try:
+            otp_entry = OTPVerification.objects.filter(user=user, otp_code=otp_code).latest('created_at')
+        except OTPVerification.DoesNotExist:
+            return Response({"error": "Invalid OTP."}, status=400)
+        
+        if otp_entry.is_expired():
+            return Response({"error": "OTP has expired."}, status=400)
+        
+        # Reset password
+        user.password = make_password(new_password)
+        user.save()
+        
+        # Optionally delete used OTP entries
+        OTPVerification.objects.filter(user=user).delete()
+        
+        return Response({"message": "Password reset successful."}, status=200)
+    else:
+        return Response(serializer.errors, status=400)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -76,7 +143,7 @@ def get_total_gemini_suggestions(request):
             return Response({"error": "Only recruiters can access this endpoint."}, status=403)
         recruiter = Recruiter.objects.get(user=request.user)
         jobs = Job.objects.filter(recruiter=recruiter)
-        total_suggestions = Application.objects.filter(job__in=jobs, is_suggestion=True).count()
+        total_suggestions = Application.objects.filter(job__in=jobs, is_suggestion=True).exclude(state='rejected').count()
         return Response({"total_gemini_suggestions": total_suggestions}, status=200)
     except Recruiter.DoesNotExist:
         return Response({"error": "Recruiter profile not found."}, status=404)
@@ -101,7 +168,7 @@ def get_jobseeker_by_email(request):
 def get_suggested_jobs_for_jobseeker(request):
     try:
         job_seeker = JobSeeker.objects.get(user=request.user)
-        applications = Application.objects.filter(jobseeker=job_seeker, is_suggestion=True)
+        applications = Application.objects.filter(jobseeker=job_seeker, is_suggestion=True, state__in=['suggested', 'accepted'])
         serializer = JobApplicationSerializer(applications, many=True)
         return Response({
             "resp": 1,
@@ -123,7 +190,10 @@ def reject_suggested_job(request):
         application = Application.objects.filter(jobseeker=job_seeker, job__id=job_id, is_suggestion=True).first()
         if not application:
             return Response({"error": "Suggested job not found"}, status=status.HTTP_404_NOT_FOUND)
-        application.delete()
+        # Instead of deleting, mark as rejected
+        application.state = 'rejected'
+        application.is_suggestion = False
+        application.save()
         return Response({"message": "Suggested job rejected successfully"}, status=status.HTTP_200_OK)
     except JobSeeker.DoesNotExist:
         return Response({"error": "Job Seeker profile not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -177,6 +247,7 @@ def public_hot_jobs(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
+    from rest_framework_simplejwt.tokens import RefreshToken
     try:
         data = request.data.copy()
         
@@ -210,12 +281,19 @@ def register_user(request):
                     salary_expectation=data.get('salary_expectation')
                 )
 
-            token, created = Token.objects.get_or_create(user=user)
+            refresh = RefreshToken.for_user(user)
             return Response({
                 "message": "User created successfully",
-                "token": token.key,
-                "user_type": user.user_type
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user_type": user.user_type,
+                "user_id": user.id,
+                "email": user.email
             }, status=status.HTTP_201_CREATED)
+        else:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Registration serializer errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -242,7 +320,8 @@ def generate_suggestions_for_recruiter(recruiter):
             matching_cvs = fetch_and_compare_overviews(job.title, job_details)
             for match in matching_cvs:
                 job_seeker = JobSeeker.objects.get(user__id=match["job_seeker_id"])
-                existing_application = Application.objects.filter(job=job, jobseeker=job_seeker).first()
+                # Check if application exists with state in rejected, accepted, or suggested
+                existing_application = Application.objects.filter(job=job, jobseeker=job_seeker, state__in=['rejected', 'accepted', 'suggested']).first()
                 if existing_application:
                     continue
                 Application.objects.create(
@@ -252,6 +331,12 @@ def generate_suggestions_for_recruiter(recruiter):
                     is_suggestion=True,
                     match_score=match["similarity"]
                 )
+        # After generating suggestions, update pending applications with match_score > 50 to suggested
+        pending_apps = Application.objects.filter(job__in=jobs, state='pending', match_score__gt=50)
+        for app in pending_apps:
+            app.state = 'suggested'
+            app.is_suggestion = True
+            app.save()
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
@@ -651,7 +736,7 @@ def view_posted_jobs(request):
         job_data = []
 
         for job in jobs:
-            suggestions_count = Application.objects.filter(job=job, is_suggestion=True).count()
+            suggestions_count = Application.objects.filter(job=job, is_suggestion=True).exclude(state='rejected').count()
             job_data.append({
                 "id": job.id,
                 "title": job.title,
@@ -832,24 +917,41 @@ def apply_for_job(request, job_id):
     try:
         user = request.user
         if user.user_type != 'job_seeker':
-            return Response({"error": "Only job seekers can apply for jobs"}, 
+            return Response({"message": "Only job seekers can apply for jobs"}, 
                             status=status.HTTP_403_FORBIDDEN)
             
         job = Job.objects.get(id=job_id)
+
+        # Check if the job deadline has passed
+        from django.utils import timezone
+        if job.expiry_date and job.expiry_date < timezone.now().date():
+            return Response({
+                "message": "The application deadline for this job has passed. You cannot apply."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         job_seeker = JobSeeker.objects.get(user=user)
 
         # التحقق مما إذا كان الـ Job Seeker قد تلقى اقتراحًا لهذه الوظيفة مسبقًا
         existing_application = Application.objects.filter(job=job, jobseeker=job_seeker).first()
         if existing_application and existing_application.is_suggestion:
             return Response({
-                "error": "This job has already been suggested to you. You cannot apply manually."
+                "message": "This job has already been suggested to you. You cannot apply manually."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # التحقق مما إذا كان الـ Job Seeker قد تقدم لهذه الوظيفة مسبقًا
         if existing_application:
-            return Response({
-                "error": "You have already applied for this job."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            if existing_application.state == 'rejected' and existing_application.is_suggestion == False:
+                # Update the state to 'suggested' to allow manual application
+                existing_application.state = 'suggested'
+                existing_application.is_suggestion = True
+                existing_application.save()
+                return Response({
+                    "message": "Your application is under review and will be suggested to the company."
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "message": "You have already applied for this job."
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         # إعداد تفاصيل الوظيفة
         job_details = f"""
@@ -873,7 +975,7 @@ def apply_for_job(request, job_id):
         match = next((cv for cv in matching_cvs if cv["job_seeker_id"] == user.id), None)
         if not match:
             return Response({
-                "error": "No matching CV found for this job seeker, or CV analysis not completed."
+                "message": "No matching CV found for this job seeker, or CV analysis not completed."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # التحقق من درجة الملاءمة
@@ -882,7 +984,7 @@ def apply_for_job(request, job_id):
 
         if match_score < match_threshold:
             return Response({
-                "error": f"Your profile does not match this job (Match Score: {match_score:.2f})."
+                "message": f"Your profile does not match this job (Match Score: {match_score:.2f})."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # إنشاء طلب جديد
@@ -901,13 +1003,13 @@ def apply_for_job(request, job_id):
             "match_score": match_score
         }, status=status.HTTP_201_CREATED)
     except Job.DoesNotExist:
-        return Response({"error": "Job not found"}, 
+        return Response({"message": "Job not found"}, 
                         status=status.HTTP_404_NOT_FOUND)
     except JobSeeker.DoesNotExist:
-        return Response({"error": "Job Seeker profile not found"}, 
+        return Response({"message": "Job Seeker profile not found"}, 
                         status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return Response({"error": str(e)}, 
+        return Response({"message": str(e)}, 
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # اقتراح Job Seekers (Recruiter)
@@ -941,8 +1043,8 @@ def suggest_job_seekers(request, job_id):
         for match in matching_cvs:
             job_seeker = JobSeeker.objects.get(user__id=match["job_seeker_id"])
             
-            # التحقق مما إذا كان الـ Job Seeker قد تقدم أو تم اقتراحه مسبقًا
-            existing_application = Application.objects.filter(job=job, jobseeker=job_seeker).first()
+            # Check if application exists with state in rejected, accepted, or suggested
+            existing_application = Application.objects.filter(job=job, jobseeker=job_seeker, state__in=['rejected', 'accepted', 'suggested']).first()
             if existing_application:
                 continue
 
@@ -1087,7 +1189,7 @@ class ViewJobApplicantsView(APIView):
 
             # إذا تم تمرير job_id (عرض المتقدمين بناءً على الـ ML للوظيفة المحددة)
             job = Job.objects.get(id=job_id, recruiter=recruiter)
-            applications = Application.objects.filter(job=job, is_suggestion=True)
+            applications = Application.objects.filter(job=job, is_suggestion=True).exclude(state='rejected')
             serializer = JobApplicationSerializer(applications, many=True)
             return Response({
                 "resp": 1,

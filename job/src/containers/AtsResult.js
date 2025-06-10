@@ -116,7 +116,13 @@ function AtsResult() {
         </button>
       </form>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error">
+          {typeof error === "object"
+            ? error.message || error.error || JSON.stringify(error)
+            : error}
+        </p>
+      )}
       {!dbPreferences && (
         <div className="alert alert-warning mt-3">
           <p>Please complete your job preferences for better CV analysis results.</p>

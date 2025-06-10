@@ -30,7 +30,7 @@ class ViewAppliedJobs extends Component {
     axios
       .get(apiPath + "/accepted-jobs/", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: token ? `Bearer ${token}` : "",
         },
       })
       .then((response) => {
@@ -52,7 +52,7 @@ class ViewAppliedJobs extends Component {
     axios
       .get(apiPath + "/suggested-jobs/", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: token ? `Bearer ${token}` : "",
         },
       })
       .then((response) => {
@@ -73,10 +73,10 @@ class ViewAppliedJobs extends Component {
     const token = localStorage.getItem("accessToken");
     // Fetch detailed job info and company info from two endpoints
     const jobDetailsRequest = axios.get(`${apiPath}/jobseeker/job/${jobId}/`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: token ? `Bearer ${token}` : "" },
     });
     const companyDetailsRequest = axios.get(`${apiPath}/jobseeker/job-company-details/${jobId}/`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: token ? `Bearer ${token}` : "" },
     });
 
     Promise.all([jobDetailsRequest, companyDetailsRequest])
@@ -98,6 +98,9 @@ class ViewAppliedJobs extends Component {
   };
 
   rejectSuggestedJob = (jobId) => {
+    if (!window.confirm("Are you sure you want to reject this job?")) {
+      return;
+    }
     const apiPath = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem("accessToken");
     axios
@@ -106,7 +109,7 @@ class ViewAppliedJobs extends Component {
         { job_id: jobId },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: token ? `Bearer ${token}` : "",
           },
         }
       )

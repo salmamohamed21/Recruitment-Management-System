@@ -88,15 +88,22 @@ class JobPage extends Component {
           if (response.data.resp === 1) {
             alert("Successfully applied for job");
           } else if (response.data.resp === 0) {
-            alert("JobsHunt: " + response.data.message);
+            alert(response.data.message);
           } else {
-            alert("JobsHunt: Request Failed");
+            // Do not show "Request Failed" for manual re-application after rejection
+            if (response.data.message && response.data.message.includes("under review")) {
+              alert(response.data.message);
+            } else {
+              alert("Request Failed");
+            }
           }
         })
         .catch((error) => {
           if (error.response) {
             console.log("Error response data:", error.response.data);
-            alert("Error: " + JSON.stringify(error.response.data));
+            const errData = error.response.data;
+            const errMsg = typeof errData === "object" ? (errData.message || errData.error || JSON.stringify(errData)) : errData;
+            alert(errMsg);
           } else {
             console.log(error);
             alert("Request failed");

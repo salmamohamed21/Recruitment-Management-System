@@ -28,6 +28,7 @@ import ChangePassword from "./ChangePassword"; // إضافة الاستيراد
 import AtsResult from "./AtsResult.js";
 import JobSuggestions from "./JobSuggestions";
 import CreateCVPage from "./CreateCVPage"; 
+import ForgotPassword from "./ForgotPassword";
 //import ViewSuggestions from "./ViewSuggestions";
 import PreferencesQuestionnaire from "./PreferencesQuestionnaire";
 import ViewJobSeekerDetails from "./ViewJobSeekerDetails";
@@ -49,6 +50,7 @@ function RootContainer() {
           <Route element={<PrivateRoute type="guest" />}>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Route>
             <Route element={<PrivateRoute type="employer" />}>
               <Route path="/employer" element={<EmployerWithRouter />}>

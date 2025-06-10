@@ -4,10 +4,6 @@ html, body {
   height: 100%;
 }
 
-* {
-  scrollbar-width: thin; 
-  scrollbar-color: #555 #f4f4f4; 
-}
 
 *::-webkit-scrollbar {
   width: 8px; 
@@ -176,4 +172,10 @@ input {
 #back:hover {
   background-color: rgba(255, 255, 255, 0.8);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.required-asterisk {
+  color: red;
+  margin-left: 2px;
+  font-weight: bold;
 }
